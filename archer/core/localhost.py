@@ -6,6 +6,18 @@ class LocalHost:
         and collects messages from them.
     '''
 
+
+    # General case error
+    class Error(Exception): pass
+
+    # Exception that is raised when LocalHost method receives
+    # as a parameter some obect that does not belong to this LocalHost instance.
+    class ObjectError(Error): pass
+
+    # Exception that is raised by dropJob if job is still running
+    class JobRunningError(Error): pass
+
+
     def __init__(self):
         '''
             Initialize LocalHost instance by getting user name and host name
@@ -52,6 +64,15 @@ class LocalHost:
         '''
 
         return [] # list of jobs
+
+
+    def dropJob(self, job):
+        '''
+            Delete given job. The job being deleted should not be running.
+        '''
+        if job.isRunning():
+            raise self.JobRunningError
+        # ...
 
 
     def findParents(self, obj):
