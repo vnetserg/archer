@@ -1,4 +1,6 @@
-from .core import LocalHost, Host, Port, Job, MuxJob
+import os
+
+from .core import LocalHost, Interface, Host, Port, Job, MuxJob
 
 
 class Controller:
@@ -36,7 +38,7 @@ class Controller:
         # If path contains transport proto - list all port numbers
         # if this proto on specified host
         if pstat["proto"]:
-            return [port.number for port in pstat["host"].ports[pstat["proto"]]]
+            return [str(port.number) for port in pstat["host"].ports[pstat["proto"]]]
 
         # If path contains host - list all available transport protocols
         if pstat["host"]:
@@ -153,7 +155,7 @@ class Controller:
         '''
         try:
             self._getJob(jid).signal(signal)
-        except ValueError:
+        except Job.SignalError:
             # No such signal
             raise self.Error("no such signal: {}".format(signal))
 
@@ -188,11 +190,11 @@ class Controller:
         if pstat["proto"]:
             try:
                 port = Port(int(name), pstat["proto"])
-            except ValueError:
+            except Port.InvalidNumber:
                 raise self.Error("invalid port: {}/{}".format(pstat["proto"], name))
             try:
                 pstat["host"].addPort(port)
-            except ValueError:
+            except Host.DuplicateError:
                 raise self.Error("port exists: {}/{}".format(path, name))
 
         # Transport protocols are not creatable
@@ -203,11 +205,11 @@ class Controller:
         elif pstat["interface"]:
             try:
                 host = Host(name)
-            except ValueError:
+            except Host.IPError:
                 raise self.Error("invalid ip address: {}".format(name))
             try:
                 pstat["interface"].addHost(host)
-            except ValueError:
+            except Interface.DuplicateError:
                 raise self.Error("host exists: {}/{}".format(path, name))
 
         # Interfaces are not creatable
@@ -229,7 +231,7 @@ class Controller:
         if pstat["port"]:
             try:
                 pstat["host"].drop(pstat["port"])
-            except ValueError:
+            except Host.PortActiveError:
                 raise self.Error("port is not closed")
 
         # If transport protocol in path, it is an Error
@@ -240,7 +242,7 @@ class Controller:
         elif pstat["host"]:
             try:
                 pstat["interface"].drop(pstat["host"])
-            except ValueError:
+            except Interface.HostUpError:
                 raise self.Error("host is up")
 
         # Interfaces are not dropable
@@ -260,19 +262,17 @@ class Controller:
 
         # Parse context
         pstat = self._parsePath(context)
-        dev = pstat["port"] or pstat["host"] or pstat["interface"]
 
         # Create a job
         try:
-            job = Job(jobname)
-        except ValueError:
+            job = Job(jobname, pstat)
+        except Job.NameError:
             raise self.Error("job manifest not found: {}".format(jobname))
+        except Job.ContextError as exc:
+            raise self.Error("inappropriate context for job: {}".format(str(exc)))
 
         # Add a job to localhost
-        try:
-            self._localhost.addJob(job, dev)
-        except ValueError:
-            raise self.Error("inappropriate context for job: {}".format(dev.__class__.__name__))
+        self._localhost.addJob(job, dev)
 
         return job.id
 
@@ -283,6 +283,31 @@ class Controller:
             Those instances are counted as one job (aka multiplexed job).
             Return id of this job.
         '''
+
+        # Parse all contexts
+        pstats = [self._parsePath(con) for con in contexts]
+
+        # For each context, construct a separate job
+        try:
+            jobs = [Job(jobname, pstat) for pstat in pstats]
+        except Job.NameError:
+            raise self.Error("job manifest not found: {}".format(jobname))
+        except Job.ContextError as exc:
+            raise self.Error("inappropriate context for job: {}".format(str(exc)))
+
+        # Find the smallest common context
+        prefix = os.path.commonprefix(contexts)
+        if prefix not in contexts:
+            prefix = "/".join(prefix.split("/")[:-1])
+
+        # Parse prefix context
+        mux_context = self._parsePath(prefix)
+
+        # Construct MUX job and add it to localhost
+        mux = JobMux(jobs, mux_context)
+        self._localhost.addJob(mux)
+
+        return mux.id
 
 
     def _parsePath(self, path):
@@ -331,12 +356,10 @@ class Controller:
             # Else if no port specified - add it
             elif not pathstat["port"]:
                 try:
-                    port = int(dev)
-                    if 0 < port < 65536: raise ValueError
+                    pathstat["port"] = int(dev)
+                    if not (0 < pathstat["port"] < 65536): raise ValueError
                 except ValueError:
                     raise self.Error("invalid port number: {}".format(dev))
-
-                if port in pathstat["host"]
 
             # If there is still something in path, it is junk
             else:
@@ -350,11 +373,61 @@ class Controller:
             Convert object to JSON representation.
         '''
 
+        if isinstance(obj, LocalHost):
+            return {
+                "username": obj.username,
+                "hostname": obj.hostname
+            }
+
+        if isinstance(obj, Interface):
+            return {
+                "name": obj.name,
+                "ip": obj.ip,
+                "mask": obj.mask,
+                "mac": obj.mac,
+                "gateway": obj.gateway,
+                "state": obj.state
+            }
+
+        if isinstance(obj, Host):
+            return {
+                "ip": obj.ip,
+                "mac": obj.mac,
+                "os": obj.os,
+                "last_activity": obj.last_activity,
+                "state": obj.state
+            }
+
+        if isinstance(obj, Port):
+            return {
+                "number": obj.number,
+                "proto": obj.proto,
+                "last_activity": obj.last_activity,
+                "state": obj.state
+            }
+
+        raise ValueError("Unknown object: {}".format(obj.__class__.__name__))
+
 
     def _pathToObject(self, obj):
         '''
             Return string path to device object.
         '''
+
+        # Find parents of this object
+        parents = self._localhost.findParents(obj)
+        devs = parents + [obj]
+
+        names = [] # list of device names participating in path
+
+        if len(devs) >= 1:
+            names.append(devs[0].name)
+        elif len(devs) >= 2:
+            names.append(devs[1].ip)
+        elif len(devs >= 3):
+            names += [devs[2].proto, int(devs[2].number)]
+
+        return "/" + "/".join(names)
 
 
     def _getJob(self, jid):
