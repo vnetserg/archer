@@ -47,7 +47,7 @@ class Controller:
         # If path contains interface - list all the ip addresses of hosts
         # associated with this interface
         if pstat["interface"]:
-            return [host.ip for host in pstat["interface"].hosts]
+            return [host.ip for host in pstat["interface"].hosts.values()]
 
         # Otherwise return names of all available interfaces
         return [iface.name for iface in self._localhost.interfaces.values()]
@@ -314,7 +314,7 @@ class Controller:
         '''
 
         # Current search status
-        pathstat = {
+        pstat = {
             "interface": None,
             "host": None,
             "proto": None,
@@ -328,31 +328,31 @@ class Controller:
             if not dev: break
 
             # If no interface specified - try to get interface
-            if not pathstat["interface"]:
+            if not pstat["interface"]:
                 try:
-                    pathstat["interface"] = self._localhost.interfaces[dev]
+                    pstat["interface"] = self._localhost.interfaces[dev]
                 except KeyError:
                     raise self.Error("interface not found: {}".format(dev))
 
             # Else if no host specified - get the host
-            elif not pathstat["host"]:
+            elif not pstat["host"]:
                 try:
-                    pathstat["host"] = pathstat["interface"].hosts[dev]
+                    pstat["host"] = pstat["interface"].hosts[dev]
                 except KeyError:
                     raise self.Error("host not found: {}/{}"
-                                     .format(pathstat["interface"], dev))
+                                     .format(pstat["interface"], dev))
 
             # Else if no transport protocol specified - get it
-            elif not pathstat["proto"]:
-                pathstat["proto"] = dev.lower()
-                if pathstat["proto"] not in pathstat["host"].ports:
+            elif not pstat["proto"]:
+                pstat["proto"] = dev.lower()
+                if pstat["proto"] not in pstat["host"].ports:
                     raise self.Error("unknown transport proto: {}".format(dev))
 
             # Else if no port specified - add it
-            elif not pathstat["port"]:
+            elif not pstat["port"]:
                 try:
-                    pathstat["port"] = int(dev)
-                    if not (0 < pathstat["port"] < 65536): raise ValueError
+                    pstat["port"] = int(dev)
+                    if not (0 < pstat["port"] < 65536): raise ValueError
                 except ValueError:
                     raise self.Error("invalid port number: {}".format(dev))
 
@@ -360,7 +360,7 @@ class Controller:
             else:
                 raise self.Error("junk path component: {}".format(dev))
 
-        return pathstat
+        return pstat
 
 
     def _toJson(self, obj):
