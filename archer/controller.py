@@ -50,7 +50,7 @@ class Controller:
             return [host.ip for host in pstat["interface"].hosts]
 
         # Otherwise return names of all available interfaces
-        return [iface.name for iface in self._localhost.interfaces]
+        return [iface.name for iface in self._localhost.interfaces.values()]
 
 
     def stat(self, path="/"):
@@ -106,7 +106,7 @@ class Controller:
                     for host in pstat["interface"].hosts.values()]
 
         # Otherwise stat all interfaces
-        return [self._toJson(iface) for iface in self._localhost.interfaces]
+        return [self._toJson(iface) for iface in self._localhost.interfaces.values()]
 
 
     def update(self):
@@ -272,7 +272,7 @@ class Controller:
             raise self.Error("inappropriate context for job: {}".format(str(exc)))
 
         # Add a job to localhost
-        self._localhost.addJob(job, dev)
+        self._localhost.addJob(job)
 
         return job.id
 
@@ -296,15 +296,15 @@ class Controller:
             raise self.Error("inappropriate context for job: {}".format(str(exc)))
 
         # Find the smallest common context
-        prefix = os.path.commonprefix(contexts)
-        if prefix not in contexts:
-            prefix = "/".join(prefix.split("/")[:-1])
+        # prefix = os.path.commonprefix(contexts)
+        # if prefix not in contexts:
+        #   prefix = "/".join(prefix.split("/")[:-1])
 
         # Parse prefix context
-        mux_context = self._parsePath(prefix)
+        # mux_context = self._parsePath(prefix)
 
         # Construct MUX job and add it to localhost
-        mux = JobMux(jobs, mux_context)
+        mux = JobMux(jobs)
         self._localhost.addJob(mux)
 
         return mux.id
