@@ -352,10 +352,14 @@ class Controller:
             # Else if no port specified - add it
             elif not pstat["port"]:
                 try:
-                    pstat["port"] = int(dev)
-                    if not (0 < pstat["port"] < 65536): raise ValueError
+                    num = int(dev)
                 except ValueError:
                     raise self.Error("invalid port number: {}".format(dev))
+                try:
+                    pstat["port"] = pstat["host"].ports[pstat["proto"]][num]
+                except KeyError:
+                    raise self.Error("port not found: {}/{}"
+                                     .format(pstat["proto"], num))
 
             # If there is still something in path, it is junk
             else:

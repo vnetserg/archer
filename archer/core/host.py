@@ -42,7 +42,7 @@ class Host:
         self.mac = None # mac address
         self.os = None # operating system
         self.last_activity = None # timestamp of the last activity
-        self.status = "unknown" # current status
+        self.state = "unknown" # current state
 
         # Ports keys are transport protocols, values are dicts.
         # Each dict key is port number, value - Port object
