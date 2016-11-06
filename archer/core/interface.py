@@ -55,7 +55,7 @@ class Interface:
         '''
 
 
-    def drop(self, host):
+    def dropHost(self, host):
         '''
             Delete host from the list of known hosts.
             Raise ObjectError if host does not belong to this interface.

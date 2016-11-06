@@ -38,7 +38,8 @@ class Controller:
         # If path contains transport proto - list all port numbers
         # if this proto on specified host
         if pstat["proto"]:
-            return [str(port.number) for port in pstat["host"].ports[pstat["proto"]]]
+            return [str(port.number)
+                    for port in pstat["host"].ports[pstat["proto"]].values()]
 
         # If path contains host - list all available transport protocols
         if pstat["host"]:
@@ -162,7 +163,7 @@ class Controller:
 
         # If port in path - drop it:
         if pstat["port"]:
-            pstat["host"].drop(pstat["port"])
+            pstat["host"].dropPort(pstat["port"])
 
         # If transport protocol in path, it is an Error
         elif pstat["proto"]:
@@ -170,7 +171,7 @@ class Controller:
 
         # If host in path - drop it
         elif pstat["host"]:
-            pstat["interface"].drop(pstat["host"])
+            pstat["interface"].dropHost(pstat["host"])
 
         # Interfaces are not dropable
         elif pstat["interface"]:
