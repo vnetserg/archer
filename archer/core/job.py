@@ -36,7 +36,7 @@ class Job:
                 interface - Interface object
                 host - Host object
                 port - Port object
-            When ommitted, key values are considered None.
+            When ommitted, context values are considered None.
         '''
 
         # Make None context values explicit
@@ -78,7 +78,7 @@ class Job:
         '''
 
 
-    def write(self):
+    def write(self, data):
         '''
             Write to subproccess stdin.
         '''

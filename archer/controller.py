@@ -278,21 +278,20 @@ class Controller:
         '''
 
         # Parse all contexts
-        pstats = [self._parsePath(con) for con in contexts]
+        pstats = [self._parsePath(cont) for cont in contexts]
 
-        # For each context, construct a separate job
+        # Create multiplexed job
         try:
-            jobs = [Job(jobname, pstat) for pstat in pstats]
+            job = MuxJob(jobname, pstats)
         except Job.NameError:
             raise self.Error("job manifest not found: {}".format(jobname))
         except Job.ContextError as exc:
             raise self.Error("inappropriate context for job: {}".format(str(exc)))
 
-        # Construct MUX job and add it to localhost
-        mux = JobMux(jobs)
-        self._localhost.addJob(mux)
+        # Add job to localhost
+        self._localhost.addJob(job)
 
-        return mux.id
+        return job.id
 
 
     def drop(self, jid):
