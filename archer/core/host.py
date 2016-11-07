@@ -1,5 +1,5 @@
 
-from ..util import is_ip
+from .. import util
 
 
 class Host:
@@ -35,7 +35,7 @@ class Host:
             attributes.
         '''
 
-        if not is_ip(ip):
+        if not util.is_ip(ip):
             raise self.IPError
 
         self.ip = ip # ip address
